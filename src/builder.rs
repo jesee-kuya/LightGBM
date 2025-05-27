@@ -1,4 +1,5 @@
 use crate::histogram::build_histogram;
+use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Clone)]
 #[allow (dead_code)]
@@ -40,7 +41,7 @@ pub fn find_best_split(histogram: &[f64], lambda: f64) -> Option<SplitResult> {
     best_split
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 #[allow(dead_code)]
 pub enum TreeNode {
     Leaf { value: f64 },
