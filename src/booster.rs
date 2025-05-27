@@ -2,9 +2,13 @@ use crate::builder::{TreeNode, build_tree};
 use crate::histogram::{compute_bin_edges, bin_continuous};
 use crate::predictor::predict;
 use serde::{Serialize, Deserialize};
+use std::fs::File;
+use std::io::{BufReader, BufWriter};
+use bincode::{DefaultOptions, Options};
+use std::error::Error;
 
 #[derive(Debug, Serialize, Deserialize)]
-#[allow (dead_code)]
+#[allow(dead_code)]
 pub struct Booster {
     pub trees: Vec<TreeNode>,
     pub learning_rate: f64,
@@ -15,6 +19,20 @@ pub struct Booster {
 
 #[allow(dead_code)]
 impl Booster {
+    pub fn save(&self, path: &str) -> Result<(), Box<dyn Error>> {
+        let file = File::create(path)?;
+        let writer = BufWriter::new(file);
+        let config = DefaultOptions::new().with_fixint_encoding().allow_trailing_bytes();
+        config.serialize_into(writer, self).map_err(Into::into)
+    }
+
+    pub fn load(path: &str) -> Result<Self, Box<dyn Error>> {
+        let file = File::open(path)?;
+        let reader = BufReader::new(file);
+        let config = DefaultOptions::new().with_fixint_encoding().allow_trailing_bytes();
+        config.deserialize_from(reader).map_err(Into::into)
+    }
+
     pub fn new(learning_rate: f64, max_depth: usize, num_bins: usize, lambda: f64) -> Self {
         Booster {
             trees: Vec::new(),
@@ -58,7 +76,6 @@ impl Booster {
                 self.lambda,
             );
 
-            // Update predictions
             for (i, pred) in predictions.iter_mut().enumerate() {
                 *pred += self.learning_rate * predict(&tree, &binned_features[i]);
             }
@@ -93,4 +110,3 @@ impl Booster {
             .collect()
     }
 }
-
