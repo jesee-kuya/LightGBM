@@ -29,3 +29,14 @@ pub fn compute_bin_edges(mut values: Vec<f64>, num_bins: usize) -> Vec<f64> {
     }
     edges
 }
+
+#[allow(dead_code)]
+/// Convert a continuous value to a bin ID using bin edges.
+pub fn bin_continuous(value: f64, edges: &[f64]) -> u8 {
+    for (i, edge) in edges.iter().enumerate() {
+        if value <= *edge {
+            return i as u8;
+        }
+    }
+    (edges.len().min(254)) as u8
+}
