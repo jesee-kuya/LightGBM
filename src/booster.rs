@@ -1,4 +1,5 @@
-use crate::builder::TreeNode;
+use crate::builder::{TreeNode, build_tree};
+use crate::histogram::{compute_bin_edges, bin_continuous};
 
 #[derive(Debug)]
 #[allow (dead_code)]
@@ -10,6 +11,7 @@ pub struct Booster {
     pub lambda: f64,
 }
 
+#[allow(dead_code)]
 impl Booster {
     pub fn new(learning_rate: f64, max_depth: usize, num_bins: usize, lambda: f64) -> Self {
         Booster {
@@ -87,5 +89,24 @@ impl Booster {
                     .sum::<f64>()
             })
             .collect()
+    }
+}
+
+#[allow(dead_code)]
+pub fn predict(tree: &TreeNode, sample: &[u8]) -> f64 {
+    match tree {
+        TreeNode::Leaf { value } => *value,
+        TreeNode::Internal {
+            feature_index,
+            threshold_bin,
+            left,
+            right,
+        } => {
+            if sample[*feature_index] as usize <= *threshold_bin {
+                predict(left, sample)
+            } else {
+                predict(right, sample)
+            }
+        }
     }
 }
