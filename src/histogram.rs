@@ -15,13 +15,17 @@ pub fn build_category_map(values: &[Option<String>]) -> HashMap<String, u8> {
 }
 
 #[allow(dead_code)]
-pub fn compute_bin_edges(data: &[f64], num_bins: usize) -> Vec<f64> {
-    let mut sorted = data.to_vec();
-    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    let mut edges = Vec::new();
+pub fn compute_bin_edges(mut values: Vec<f64>, num_bins: usize) -> Vec<f64> {
+    if values.is_empty() || num_bins == 0 {
+        return vec![];
+    }
+    values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    let mut edges = Vec::with_capacity(num_bins - 1);
     for i in 1..num_bins {
-        let idx = i * sorted.len() / num_bins;
-        edges.push(sorted[idx]);
+        let idx = i * values.len() / num_bins;
+        if idx < values.len() {
+            edges.push(values[idx]);
+        }
     }
     edges
 }
