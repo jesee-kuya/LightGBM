@@ -1,5 +1,6 @@
 use crate::builder::{TreeNode, build_tree};
 use crate::histogram::{compute_bin_edges, bin_continuous};
+use crate::predictor::predict;
 
 #[derive(Debug)]
 #[allow (dead_code)]
