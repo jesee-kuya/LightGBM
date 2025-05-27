@@ -1,3 +1,5 @@
+use crate::builder::TreeNode;
+
 #[allow(dead_code)]
 pub fn predict(tree: &TreeNode, sample: &[u8]) -> f64 {
     match tree {
