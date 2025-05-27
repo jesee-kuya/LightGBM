@@ -1,8 +1,9 @@
 use crate::builder::{TreeNode, build_tree};
 use crate::histogram::{compute_bin_edges, bin_continuous};
 use crate::predictor::predict;
+use serde::{Serialize, Deserialize};
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 #[allow (dead_code)]
 pub struct Booster {
     pub trees: Vec<TreeNode>,
