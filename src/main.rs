@@ -1,1 +1,3 @@
 mod reader;
+
+fn main() {}
