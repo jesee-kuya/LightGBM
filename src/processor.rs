@@ -73,3 +73,17 @@ pub fn preprocess_record(
         weight: 1.0,
     })
 }
+
+#[allow(dead_code)]
+pub fn build_category_map(values: &[Option<String>]) -> HashMap<String, u8> {
+    let mut map = HashMap::new();
+    let mut index = 0u8;
+    for val in values.iter().filter_map(|v| v.as_ref()) {
+        if !map.contains_key(val) && index < 255 {
+            map.insert(val.clone(), index);
+            index += 1;
+        }
+    }
+    map.insert("__MISSING__".into(), 255);
+    map
+}
