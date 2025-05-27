@@ -16,8 +16,8 @@ use crate::booster::Booster;
 
 fn main() -> Result<(), Box<dyn Error>> {
     // File paths (can be parameterized or read from CLI)
-    let train_path = "train.csv";
-    let test_path = "test.csv";
+    let train_path = "data/train.csv";
+    let test_path = "data/test.csv";
     let output_csv = "predictions.csv";
 
     println!("Loading training data from '{}'...", train_path);
