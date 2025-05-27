@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use crate::histogram::build_histogram;
 
 #[derive(Debug, Clone)]
 #[allow (dead_code)]
@@ -52,6 +52,7 @@ pub enum TreeNode {
     },
 }
 
+#[allow(dead_code)]
 pub fn build_tree(
     binned_features: &[Vec<u8>],
     gradients: &[f64],
