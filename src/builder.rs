@@ -39,3 +39,15 @@ pub fn find_best_split(histogram: &[f64], lambda: f64) -> Option<SplitResult> {
     }
     best_split
 }
+
+#[derive(Debug)]
+#[allow(dead_code)]
+pub enum TreeNode {
+    Leaf { value: f64 },
+    Internal {
+        feature_index: usize,
+        threshold_bin: usize,
+        left: Box<TreeNode>,
+        right: Box<TreeNode>,
+    },
+}
