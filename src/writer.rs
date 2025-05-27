@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::reader::DataRecord;
 use crate::predictor::TargetField;
 
+
 pub fn write_predictions_to_csv(
     path: &str,
     test_records: &[DataRecord],
