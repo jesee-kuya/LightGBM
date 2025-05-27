@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 #[allow(dead_code)]
 pub fn build_category_map(values: &[Option<String>]) -> HashMap<String, u8> {
     let mut map = HashMap::new();
