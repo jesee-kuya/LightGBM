@@ -40,3 +40,21 @@ pub fn bin_continuous(value: f64, edges: &[f64]) -> u8 {
     }
     (edges.len().min(254)) as u8
 }
+
+#[allow(dead_code)]
+/// Build gradient histograms per feature bin (simplified version).
+pub fn build_histogram(
+    binned_features: &[Vec<u8>],
+    gradients: &[f64],
+    feature_index: usize,
+    num_bins: usize,
+) -> Vec<f64> {
+    let mut histogram = vec![0.0; num_bins];
+    for (i, sample) in binned_features.iter().enumerate() {
+        let bin = sample[feature_index] as usize;
+        if bin < num_bins {
+            histogram[bin] += gradients[i];
+        }
+    }
+    histogram
+}
