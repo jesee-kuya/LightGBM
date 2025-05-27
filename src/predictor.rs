@@ -18,3 +18,13 @@ pub fn predict(tree: &TreeNode, sample: &[u8]) -> f64 {
         }
     }
 }
+
+#[allow(dead_code)]
+pub fn compute_mse(predictions: &[f64], targets: &[f64]) -> f64 {
+    predictions
+        .iter()
+        .zip(targets.iter())
+        .map(|(p, t)| (p - t).powi(2))
+        .sum::<f64>()
+        / predictions.len() as f64
+}
