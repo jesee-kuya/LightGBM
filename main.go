@@ -2,17 +2,14 @@
 package main
 
 import (
-	"encoding/csv"
 	"fmt"
 	"log"
-	"math"
-	"os"
 
 	"github.com/jesee-kuya/LightGBM/booster"
-	"github.com/jesee-kuya/LightGBM/model"
 	"github.com/jesee-kuya/LightGBM/preprocess"
 	"github.com/jesee-kuya/LightGBM/reader"
 	"github.com/jesee-kuya/LightGBM/util"
+	"github.com/jesee-kuya/LightGBM/writer"
 )
 
 func main() {
@@ -83,72 +80,8 @@ func main() {
 
 	// ─── 8) WRITE TEST PREDICTIONS ───
 	outTest := "data/test_prediction.csv"
-	if err := writePredictions(testRecords, Xtest, boost, pre, outTest); err != nil {
+	if err := writer.WritePredictions(testRecords, Xtest, boost, pre, outTest); err != nil {
 		log.Fatalf("failed to write test predictions: %v", err)
 	}
 	fmt.Printf("Test predictions written to %s\n", outTest)
-}
-
-// writePredictions outputs CSV: ID,Clinician,GPT4.0,LLAMA,GEMINI,DDX_SNOMED
-func writePredictions(
-	records []model.DataRecord,
-	Xall [][]float64,
-	boost *booster.Booster,
-	pre *preprocess.Preprocessor,
-	outPath string,
-) error {
-	f, err := os.Create(outPath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	w := csv.NewWriter(f)
-	defer w.Flush()
-
-	header := []string{"Master_Index", "Clinician", "GPT4.0", "LLAMA", "GEMINI", "DDX_SNOMED"}
-	if err := w.Write(header); err != nil {
-		return err
-	}
-
-	clinLabels := pre.ClinicianClasses()
-	gpt4Labels := pre.GPT4Classes()
-	llamaLabels := pre.LLAMAClasses()
-	geminiLabels := pre.GEMINIClasses()
-	ddxLabels := pre.DDXClasses()
-
-	for i, rec := range records {
-		pred := boost.Predict(Xall[i])
-		clinIdx := clamp(pred[0], len(clinLabels))
-		gpt4Idx := clamp(pred[1], len(gpt4Labels))
-		llamaIdx := clamp(pred[2], len(llamaLabels))
-		geminiIdx := clamp(pred[3], len(geminiLabels))
-		ddxIdx := clamp(pred[4], len(ddxLabels))
-
-		row := []string{
-			rec.ID,
-			clinLabels[clinIdx],
-			gpt4Labels[gpt4Idx],
-			llamaLabels[llamaIdx],
-			geminiLabels[geminiIdx],
-			ddxLabels[ddxIdx],
-		}
-		if err := w.Write(row); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// clamp rounds to nearest int and clamps into [0, maxLen-1]
-func clamp(val float64, maxLen int) int {
-	idx := int(math.Round(val))
-	if idx < 0 {
-		return 0
-	}
-	if idx >= maxLen {
-		return maxLen - 1
-	}
-	return idx
 }
