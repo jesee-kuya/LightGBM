@@ -236,6 +236,48 @@ func (p *Preprocessor) Transform(records []model.DataRecord) ([][]float64, [][]f
 	return X, Y
 }
 
+// In preprocess/preprocess.go (append these methods)
+
+func (p *Preprocessor) ClinicianClasses() []string {
+	rev := make([]string, len(p.clinicianEncoder))
+	for str, idx := range p.clinicianEncoder {
+		rev[idx] = str
+	}
+	return rev
+}
+
+func (p *Preprocessor) GPT4Classes() []string {
+	rev := make([]string, len(p.gpt4Encoder))
+	for str, idx := range p.gpt4Encoder {
+		rev[idx] = str
+	}
+	return rev
+}
+
+func (p *Preprocessor) LLAMAClasses() []string {
+	rev := make([]string, len(p.llamaEncoder))
+	for str, idx := range p.llamaEncoder {
+		rev[idx] = str
+	}
+	return rev
+}
+
+func (p *Preprocessor) GEMINIClasses() []string {
+	rev := make([]string, len(p.geminiEncoder))
+	for str, idx := range p.geminiEncoder {
+		rev[idx] = str
+	}
+	return rev
+}
+
+func (p *Preprocessor) DDXClasses() []string {
+	rev := make([]string, len(p.ddxEncoder))
+	for str, idx := range p.ddxEncoder {
+		rev[idx] = str
+	}
+	return rev
+}
+
 // hashWord returns a 32‐bit FNV‐1a hash of the input string.
 func hashWord(s string) uint32 {
 	h := fnv.New32a()
