@@ -1,4 +1,3 @@
-// preprocess/preprocess.go
 package preprocess
 
 import (
@@ -8,35 +7,50 @@ import (
 	"github.com/jesee-kuya/LightGBM/model"
 )
 
-// Preprocessor holds state (maps) for converting DataRecord fields to numeric.
+// Preprocessor holds maps for encoding both inputs and targets.
 type Preprocessor struct {
-	// maps from categorical value (string) → integer index
-	// we will assign 0,1,2,... for each distinct category
+	// INPUT encoders (as before):
 	countyEncoder      map[string]int
 	healthLevelEncoder map[string]int
 	competencyEncoder  map[string]int
 	panelEncoder       map[string]int
 
-	// number of buckets for hashing the prompt text
+	// TEXT → hash‐bucket size:
 	numPromptBuckets int
+
+	// TARGET encoders (one map per target column):
+	clinicianEncoder map[string]int
+	gpt4Encoder      map[string]int
+	llamaEncoder     map[string]int
+	geminiEncoder    map[string]int
+	ddxEncoder       map[string]int
 }
 
-// NewPreprocessor returns a Preprocessor that will hash prompts into
-// numPromptBuckets dimensions, and build categorical encoders:
+// NewPreprocessor allocates a Preprocessor that will hash prompts into
+// numPromptBuckets and also build encoders for five target columns.
 func NewPreprocessor(numPromptBuckets int) *Preprocessor {
 	return &Preprocessor{
 		countyEncoder:      make(map[string]int),
 		healthLevelEncoder: make(map[string]int),
 		competencyEncoder:  make(map[string]int),
 		panelEncoder:       make(map[string]int),
-		numPromptBuckets:   numPromptBuckets,
+
+		numPromptBuckets: numPromptBuckets,
+
+		clinicianEncoder: make(map[string]int),
+		gpt4Encoder:      make(map[string]int),
+		llamaEncoder:     make(map[string]int),
+		geminiEncoder:    make(map[string]int),
+		ddxEncoder:       make(map[string]int),
 	}
 }
 
-// Fit scans through all records once to build up each categorical encoder.
-// ‣ Any unseen category gets the next integer index (0,1,2,...).
+// Fit builds all categorical‐and‐target encoders by scanning through every record.
+// After calling Fit, every distinct string in each column has been assigned an integer ID.
 func (p *Preprocessor) Fit(records []model.DataRecord) {
 	for _, r := range records {
+		// ─── 1) BUILD INPUT ENCODERS ───
+
 		// COUNTY
 		c := strings.ToLower(strings.TrimSpace(r.County))
 		if _, ok := p.countyEncoder[c]; !ok {
@@ -60,39 +74,79 @@ func (p *Preprocessor) Fit(records []model.DataRecord) {
 		if _, ok := p.panelEncoder[pnl]; !ok {
 			p.panelEncoder[pnl] = len(p.panelEncoder)
 		}
+
+		// ─── 2) BUILD TARGET ENCODERS ───
+		// Each of these maps string → unique int
+
+		// Clinician
+		cl := strings.TrimSpace(r.Clinician)
+		if cl != "" {
+			if _, ok := p.clinicianEncoder[cl]; !ok {
+				p.clinicianEncoder[cl] = len(p.clinicianEncoder)
+			}
+		}
+
+		// GPT4.0
+		g4 := strings.TrimSpace(r.GPT4)
+		if g4 != "" {
+			if _, ok := p.gpt4Encoder[g4]; !ok {
+				p.gpt4Encoder[g4] = len(p.gpt4Encoder)
+			}
+		}
+
+		// LLAMA
+		la := strings.TrimSpace(r.LLAMA)
+		if la != "" {
+			if _, ok := p.llamaEncoder[la]; !ok {
+				p.llamaEncoder[la] = len(p.llamaEncoder)
+			}
+		}
+
+		// GEMINI
+		ge := strings.TrimSpace(r.GEMINI)
+		if ge != "" {
+			if _, ok := p.geminiEncoder[ge]; !ok {
+				p.geminiEncoder[ge] = len(p.geminiEncoder)
+			}
+		}
+
+		// DDX SNOMED
+		dd := strings.TrimSpace(r.DDXSNOMED)
+		if dd != "" {
+			if _, ok := p.ddxEncoder[dd]; !ok {
+				p.ddxEncoder[dd] = len(p.ddxEncoder)
+			}
+		}
 	}
 }
 
-// Transform takes a slice of DataRecord and returns:
-//   - X: [][]float64 where each inner []float64 is the numeric feature vector for a record
-//   - Y: [][]string where each inner []string is the list of raw targets (you can label‐encode these later)
-func (p *Preprocessor) Transform(records []model.DataRecord) ([][]float64, [][]string) {
+// Transform returns:
+//   - X: [][]float64  (numeric feature vectors, one row per record)
+//   - Y: [][]float64  (each row is a slice of five encoded‐target ints, in float64 form)
+//
+// The order of targets in Y[i] is exactly:
+//
+//	[ encoded(Clinician), encoded(GPT4.0), encoded(LLAMA), encoded(GEMINI), encoded(DDX SNOMED) ]
+func (p *Preprocessor) Transform(records []model.DataRecord) ([][]float64, [][]float64) {
 	n := len(records)
+	// Each feature‐vector has length: 5 (categorical + numeric) + numPromptBuckets
 	X := make([][]float64, n)
-	Y := make([][]string, n)
+	// Each Y‐vector has length 5 (one per target column)
+	Y := make([][]float64, n)
 
 	for i, r := range records {
-		// 1) build one feature‐vector step‐by‐step
-		//  Features in order:
-		//   [0] county (int),
-		//   [1] healthLevel (int),
-		//   [2] yearsExperience (float),
-		//   [3] competency (int),
-		//   [4] panel (int),
-		//   [5..(5+numPromptBuckets-1)] promptHash features (float)
-
-		// Allocate a slice of length = 5 + numPromptBuckets
+		// ─── 1) BUILD INPUT FEATURE VECTOR ───
 		featVec := make([]float64, 5+p.numPromptBuckets)
 
-		// --- (0) county index
+		// (0) county → float64(idx)
 		c := strings.ToLower(strings.TrimSpace(r.County))
 		if idx, ok := p.countyEncoder[c]; ok {
 			featVec[0] = float64(idx)
 		} else {
-			featVec[0] = -1.0 // unseen category (shouldn’t happen if Fit saw all)
+			featVec[0] = -1.0
 		}
 
-		// --- (1) health level index
+		// (1) health level → float64(idx)
 		h := strings.ToLower(strings.TrimSpace(r.HealthLevel))
 		if idx, ok := p.healthLevelEncoder[h]; ok {
 			featVec[1] = float64(idx)
@@ -100,10 +154,10 @@ func (p *Preprocessor) Transform(records []model.DataRecord) ([][]float64, [][]s
 			featVec[1] = -1.0
 		}
 
-		// --- (2) years of experience (already numeric)
+		// (2) years of experience (already a float)
 		featVec[2] = r.YearsExperience
 
-		// --- (3) nursing competency index
+		// (3) competency → float64(idx)
 		comp := strings.ToLower(strings.TrimSpace(r.Competency))
 		if idx, ok := p.competencyEncoder[comp]; ok {
 			featVec[3] = float64(idx)
@@ -111,7 +165,7 @@ func (p *Preprocessor) Transform(records []model.DataRecord) ([][]float64, [][]s
 			featVec[3] = -1.0
 		}
 
-		// --- (4) clinical panel index
+		// (4) panel → float64(idx)
 		pnl := strings.ToLower(strings.TrimSpace(r.Panel))
 		if idx, ok := p.panelEncoder[pnl]; ok {
 			featVec[4] = float64(idx)
@@ -119,8 +173,7 @@ func (p *Preprocessor) Transform(records []model.DataRecord) ([][]float64, [][]s
 			featVec[4] = -1.0
 		}
 
-		// --- (5..): hash the prompt text into numPromptBuckets “bag‐of‐hashes”
-		// We’ll zero‐initialize all prompt buckets, then accumulate counts.
+		// (5..): bag‐of‐hashes on Prompt
 		promptBuckets := make([]float64, p.numPromptBuckets)
 		words := strings.Fields(strings.ToLower(r.Prompt))
 		for _, w := range words {
@@ -128,27 +181,62 @@ func (p *Preprocessor) Transform(records []model.DataRecord) ([][]float64, [][]s
 			bucket := int(hv % uint32(p.numPromptBuckets))
 			promptBuckets[bucket] += 1.0
 		}
-		// Copy promptBuckets into featVec[5:]
 		for j := 0; j < p.numPromptBuckets; j++ {
 			featVec[5+j] = promptBuckets[j]
 		}
 
 		X[i] = featVec
 
-		// 2) collect Y[i] = raw text targets (5 of them, for example)
-		Y[i] = []string{
-			r.Clinician,
-			r.GPT4,
-			r.LLAMA,
-			r.GEMINI,
-			r.DDXSNOMED,
+		// ─── 2) BUILD TARGET VECTOR (as float64 of each label index) ───
+		targs := make([]float64, 5)
+
+		// Clinician
+		cl := strings.TrimSpace(r.Clinician)
+		if idx, ok := p.clinicianEncoder[cl]; ok {
+			targs[0] = float64(idx)
+		} else {
+			targs[0] = -1.0
 		}
+
+		// GPT4.0
+		g4 := strings.TrimSpace(r.GPT4)
+		if idx, ok := p.gpt4Encoder[g4]; ok {
+			targs[1] = float64(idx)
+		} else {
+			targs[1] = -1.0
+		}
+
+		// LLAMA
+		la := strings.TrimSpace(r.LLAMA)
+		if idx, ok := p.llamaEncoder[la]; ok {
+			targs[2] = float64(idx)
+		} else {
+			targs[2] = -1.0
+		}
+
+		// GEMINI
+		ge := strings.TrimSpace(r.GEMINI)
+		if idx, ok := p.geminiEncoder[ge]; ok {
+			targs[3] = float64(idx)
+		} else {
+			targs[3] = -1.0
+		}
+
+		// DDX SNOMED
+		dd := strings.TrimSpace(r.DDXSNOMED)
+		if idx, ok := p.ddxEncoder[dd]; ok {
+			targs[4] = float64(idx)
+		} else {
+			targs[4] = -1.0
+		}
+
+		Y[i] = targs
 	}
 
 	return X, Y
 }
 
-// hashWord returns a 32‐bit FNV‐1a hash of the input string
+// hashWord returns a 32‐bit FNV‐1a hash of the input string.
 func hashWord(s string) uint32 {
 	h := fnv.New32a()
 	h.Write([]byte(s))
