@@ -1,59 +1,74 @@
+// booster/booster.go
 package booster
 
-import "github.com/jesee-kuya/LightGBM/tree"
+import (
+	"github.com/jesee-kuya/LightGBM/tree"
+)
 
-// Booster trains one tree‐ensemble per target column.
+// Booster trains one histogram-based tree ensemble per target column.
 type Booster struct {
 	Trees        [][]*tree.Node // Trees[j] is slice of *Node for target j
 	LearningRate float64
 	MaxDepth     int
 	MinSamples   int // minimum samples to split
+	NumBins      int // number of bins per feature
 
 	NumTargets int
 }
 
 // NewBooster allocates a Booster for `numTargets` outputs.
-func NewBooster(numTargets int, lr float64, maxDepth, minSamples int) *Booster {
+// Uses `defaultBins` as the histogram bin count.
+func NewBooster(numTargets int, lr float64, maxDepth, minSamples, defaultBins int) *Booster {
 	trees := make([][]*tree.Node, numTargets)
 	return &Booster{
 		Trees:        trees,
 		LearningRate: lr,
 		MaxDepth:     maxDepth,
 		MinSamples:   minSamples,
+		NumBins:      defaultBins,
 		NumTargets:   numTargets,
 	}
 }
 
 // Fit trains `nRounds` of boosting; X is N×D, Y is N×T (T = numTargets).
 // We assume Y[i][j] is the class index (float64) for jth target on ith row.
-// We’ll do a simple squared‐error residual (i.e. treat indices as real numbers).
+// Uses squared-error: gradient = pred - target, hessian = 1.
 func (b *Booster) Fit(X [][]float64, Y [][]float64, nRounds int) {
 	N := len(X)
 	T := b.NumTargets
 
-	// Initialize predictions ŷ to zero: preds[i][j] will hold the current pred for row i, target j.
+	// Initialize predictions ŷ to zero: preds[i][j]
 	preds := make([][]float64, N)
 	for i := range preds {
 		preds[i] = make([]float64, T)
 	}
 
-	// For each boosting round
 	for round := 0; round < nRounds; round++ {
 		for j := 0; j < T; j++ {
-			// 1) Compute residuals rᵢ = Y[i][j] - preds[i][j]
-			residuals := make([]float64, N)
+			// 1) Compute gradients and hessians for target j
+			grad := make([]float64, N)
+			hess := make([]float64, N)
 			for i := 0; i < N; i++ {
-				residuals[i] = Y[i][j] - preds[i][j]
+				grad[i] = preds[i][j] - Y[i][j] // pred - target
+				hess[i] = 1.0
 			}
 
-			// 2) Fit one tree on (X, residuals)
-			treeJ := tree.BuildRegressionTree(X, residuals, 0, b.MaxDepth, b.MinSamples)
+			// 2) Build one histogram‐based tree on (X, grad, hess)
+			treeJ := tree.BuildHistogramTree(
+				X,
+				grad,
+				hess,
+				0,            // current depth
+				b.MaxDepth,   // maxDepth
+				b.MinSamples, // minSamples per leaf
+				b.NumBins,    // numBins per feature
+			)
 			b.Trees[j] = append(b.Trees[j], treeJ)
 
-			// 3) Update preds[i][j] += learningRate * tree.predict(X[i])
+			// 3) Update preds[i][j] += learningRate * tree prediction
 			for i := 0; i < N; i++ {
-				predVal := tree.PredictTree(treeJ, X[i])
-				preds[i][j] += b.LearningRate * predVal
+				val := tree.PredictTree(treeJ, X[i])
+				preds[i][j] += b.LearningRate * val
 			}
 		}
 	}
@@ -65,8 +80,8 @@ func (b *Booster) Predict(x []float64) []float64 {
 	out := make([]float64, b.NumTargets)
 	for j := 0; j < b.NumTargets; j++ {
 		var sum float64
-		for _, t := range b.Trees[j] {
-			sum += b.LearningRate * tree.PredictTree(t, x)
+		for _, tnode := range b.Trees[j] {
+			sum += b.LearningRate * tree.PredictTree(tnode, x)
 		}
 		out[j] = sum
 	}
