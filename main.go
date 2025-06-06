@@ -53,7 +53,8 @@ func main() {
 
 	// ─── 4) TRAIN THE BOOSTER ───
 	numTargets := len(YtrainAll[0]) // should be 5
-	boost := booster.NewBooster(numTargets, 0.1, 3, 5)
+	// Include numBins (e.g., 64) as the fifth parameter
+	boost := booster.NewBooster(numTargets, 0.1, 3, 5, 64)
 	boost.Fit(Xtrain, Ytrain, 50)
 	fmt.Println("Training complete.")
 
