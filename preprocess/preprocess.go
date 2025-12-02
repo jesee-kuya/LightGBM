@@ -13,11 +13,7 @@ type Preprocessor struct {
 	healthLevelEncoder map[string]int
 	competencyEncoder  map[string]int
 	panelEncoder       map[string]int
-
-	// TEXT → hash‐bucket size:
 	numPromptBuckets int
-
-	// TARGET encoders (one map per target column):
 	clinicianEncoder map[string]int
 	gpt4Encoder      map[string]int
 	llamaEncoder     map[string]int
