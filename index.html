@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DDX Prediction Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background-color: #f4f7f6;
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+        textarea {
+            width: 98%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            resize: vertical;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #response-box {
+            margin-top: 30px;
+            padding: 15px;
+            border: 2px solid #28a745;
+            border-radius: 4px;
+            background-color: #e6f7eb;
+        }
+        #response-box p {
+            margin: 0;
+            font-size: 1.1em;
+        }
+        .loading {
+            color: #ffc107;
+            font-weight: bold;
+        }
+        .error {
+            color: #dc3545;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🩺 Differential Diagnosis Predictor</h1>
+
+        <form id="predictionForm">
+            <label for="illness_description">Enter Patient's Symptoms:</label>
+            <textarea id="illness_description" name="illness_description" rows="5" required placeholder="e.g., I have a fever, cough, and feel short of breath."></textarea>
+            
+            <button type="submit">Get Main Diagnosis</button>
+        </form>
+
+        <div id="response-box">
+            <p><strong>Diagnosis Result:</strong> <span id="mainDiagnosis">Submit a prompt above to see the prediction.</span></p>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('predictionForm');
+        const mainDiagnosisSpan = document.getElementById('mainDiagnosis');
+        const backendUrl = 'http://localhost:8080/predict'; // Match your Go server's address
+
+        form.addEventListener('submit', async function(event) {
+            // Prevent the default form submission (which causes a page reload)
+            event.preventDefault(); 
+
+            // Get the value from the text area
+            const prompt = document.getElementById('illness_description').value;
+
+            // Simple validation
+            if (!prompt.trim()) {
+                mainDiagnosisSpan.textContent = "Please enter a description.";
+                return;
+            }
+
+            // Set loading state
+            mainDiagnosisSpan.textContent = "Loading prediction...";
+            mainDiagnosisSpan.classList.add('loading');
+
+            try {
+                // Send the POST request using Fetch API
+                const response = await fetch(backendUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        "illness_description": prompt 
+                    }),
+                });
+
+                // Check if the request was successful (status 200-299)
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                // Parse the JSON response body
+                const data = await response.json();
+                
+                // Extract and display the diagnosis, replacing the newline/pipe separators with a readable list
+                const formattedDiagnosis = data.main_diagnosis
+                    .replace(/ \| /g, '<br> - ')
+                    .replace(/\n/g, '<br> - ');
+                
+                mainDiagnosisSpan.innerHTML = formattedDiagnosis;
+                mainDiagnosisSpan.classList.remove('loading', 'error');
+
+            } catch (error) {
+                console.error('Fetch error:', error);
+                mainDiagnosisSpan.textContent = `Error: Could not connect to backend or process request. try again later?`;
+                mainDiagnosisSpan.classList.remove('loading');
+                mainDiagnosisSpan.classList.add('error');
+            }
+        });
+    </script>
+</body>
+</html>
