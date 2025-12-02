@@ -25,11 +25,8 @@ func Evaluate(
 	for i := 0; i < Nval; i++ {
 		pred := boost.Predict(Xval[i])
 		trueRow := Yval[i]
-		for j := 0; j < numTargets; j++ {
-			pi := int(math.Round(pred[j]))
-			if pi < 0 {
-				pi = 0
-			}
+		for j := range numTargets {
+			pi := max(int(math.Round(pred[j])), 0)
 			var maxIdx int
 			switch j {
 			case 0:

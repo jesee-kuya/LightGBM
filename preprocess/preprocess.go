@@ -9,7 +9,6 @@ import (
 
 // Preprocessor holds maps for encoding both inputs and targets.
 type Preprocessor struct {
-	// INPUT encoders (as before):
 	countyEncoder      map[string]int
 	healthLevelEncoder map[string]int
 	competencyEncoder  map[string]int
@@ -49,8 +48,6 @@ func NewPreprocessor(numPromptBuckets int) *Preprocessor {
 // After calling Fit, every distinct string in each column has been assigned an integer ID.
 func (p *Preprocessor) Fit(records []model.DataRecord) {
 	for _, r := range records {
-		// ─── 1) BUILD INPUT ENCODERS ───
-
 		// COUNTY
 		c := strings.ToLower(strings.TrimSpace(r.County))
 		if _, ok := p.countyEncoder[c]; !ok {
@@ -75,7 +72,7 @@ func (p *Preprocessor) Fit(records []model.DataRecord) {
 			p.panelEncoder[pnl] = len(p.panelEncoder)
 		}
 
-		// ─── 2) BUILD TARGET ENCODERS ───
+		// BUILD TARGET ENCODERS 
 		// Each of these maps string → unique int
 
 		// Clinician
@@ -129,16 +126,14 @@ func (p *Preprocessor) Fit(records []model.DataRecord) {
 //	[ encoded(Clinician), encoded(GPT4.0), encoded(LLAMA), encoded(GEMINI), encoded(DDX SNOMED) ]
 func (p *Preprocessor) Transform(records []model.DataRecord) ([][]float64, [][]float64) {
 	n := len(records)
-	// Each feature‐vector has length: 5 (categorical + numeric) + numPromptBuckets
 	X := make([][]float64, n)
-	// Each Y‐vector has length 5 (one per target column)
 	Y := make([][]float64, n)
 
 	for i, r := range records {
-		// ─── 1) BUILD INPUT FEATURE VECTOR ───
+		// BUILD INPUT FEATURE VECTOR 
 		featVec := make([]float64, 5+p.numPromptBuckets)
 
-		// (0) county → float64(idx)
+		// county → float64(idx)
 		c := strings.ToLower(strings.TrimSpace(r.County))
 		if idx, ok := p.countyEncoder[c]; ok {
 			featVec[0] = float64(idx)
@@ -146,7 +141,7 @@ func (p *Preprocessor) Transform(records []model.DataRecord) ([][]float64, [][]f
 			featVec[0] = -1.0
 		}
 
-		// (1) health level → float64(idx)
+		// health level → float64(idx)
 		h := strings.ToLower(strings.TrimSpace(r.HealthLevel))
 		if idx, ok := p.healthLevelEncoder[h]; ok {
 			featVec[1] = float64(idx)
@@ -154,10 +149,10 @@ func (p *Preprocessor) Transform(records []model.DataRecord) ([][]float64, [][]f
 			featVec[1] = -1.0
 		}
 
-		// (2) years of experience (already a float)
+		// years of experience (already a float)
 		featVec[2] = r.YearsExperience
 
-		// (3) competency → float64(idx)
+		// competency → float64(idx)
 		comp := strings.ToLower(strings.TrimSpace(r.Competency))
 		if idx, ok := p.competencyEncoder[comp]; ok {
 			featVec[3] = float64(idx)
@@ -165,7 +160,7 @@ func (p *Preprocessor) Transform(records []model.DataRecord) ([][]float64, [][]f
 			featVec[3] = -1.0
 		}
 
-		// (4) panel → float64(idx)
+		// panel → float64(idx)
 		pnl := strings.ToLower(strings.TrimSpace(r.Panel))
 		if idx, ok := p.panelEncoder[pnl]; ok {
 			featVec[4] = float64(idx)
@@ -173,7 +168,7 @@ func (p *Preprocessor) Transform(records []model.DataRecord) ([][]float64, [][]f
 			featVec[4] = -1.0
 		}
 
-		// (5..): bag‐of‐hashes on Prompt
+		// bag‐of‐hashes on Prompt
 		promptBuckets := make([]float64, p.numPromptBuckets)
 		words := strings.Fields(strings.ToLower(r.Prompt))
 		for _, w := range words {
@@ -187,7 +182,7 @@ func (p *Preprocessor) Transform(records []model.DataRecord) ([][]float64, [][]f
 
 		X[i] = featVec
 
-		// ─── 2) BUILD TARGET VECTOR (as float64 of each label index) ───
+		// BUILD TARGET VECTOR (as float64 of each label index) ───
 		targs := make([]float64, 5)
 
 		// Clinician
@@ -235,8 +230,6 @@ func (p *Preprocessor) Transform(records []model.DataRecord) ([][]float64, [][]f
 
 	return X, Y
 }
-
-// In preprocess/preprocess.go (append these methods)
 
 func (p *Preprocessor) ClinicianClasses() []string {
 	rev := make([]string, len(p.clinicianEncoder))

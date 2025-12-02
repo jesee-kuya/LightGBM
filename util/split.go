@@ -7,8 +7,8 @@ import (
 )
 
 // ShuffleSplit randomly shuffles indices [0..n-1] and returns two slices:
-//   • trainIdx: first trainFrac·n shuffled indices
-//   • valIdx: remaining indices
+//   - trainIdx: first trainFrac·n shuffled indices
+//   - valIdx: remaining indices
 //
 // trainFrac should be between 0.0 and 1.0 (e.g., 0.8 for an 80/20 split).
 func ShuffleSplit(n int, trainFrac float64) (trainIdx, valIdx []int) {

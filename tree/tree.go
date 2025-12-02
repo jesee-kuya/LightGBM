@@ -5,15 +5,13 @@ import (
 	"math"
 )
 
-// Node represents one node in our histogram-based regression tree.
+// Node represents one node in histogram-based regression tree.
 type Node struct {
-	FeatureIdx int     // index of feature to split on
-	Threshold  float64 // float threshold: if x[FeatureIdx] ≤ Threshold → go Left; else Right
-
+	FeatureIdx int    
+	Threshold  float64 
 	Left  *Node
 	Right *Node
-
-	Value  float64 // leaf prediction
+	Value  float64 
 	IsLeaf bool
 }
 
@@ -49,8 +47,8 @@ func BuildHistogramTree(
 		return &Node{IsLeaf: true, Value: leafValue}
 	}
 
-	D := len(X[0]) // number of features
-
+	D := len(X[0]) 
+	
 	// Step 1: For each feature j, compute min and max over samples
 	minVals := make([]float64, D)
 	maxVals := make([]float64, D)

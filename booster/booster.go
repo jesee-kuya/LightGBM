@@ -7,11 +7,11 @@ import (
 
 // Booster trains one histogram-based tree ensemble per target column.
 type Booster struct {
-	Trees        [][]*tree.Node // Trees[j] is slice of *Node for target j
+	Trees        [][]*tree.Node 
 	LearningRate float64
 	MaxDepth     int
-	MinSamples   int // minimum samples to split
-	NumBins      int // number of bins per feature
+	MinSamples   int 
+	NumBins      int 
 
 	NumTargets int
 }
@@ -31,7 +31,6 @@ func NewBooster(numTargets int, lr float64, maxDepth, minSamples, defaultBins in
 }
 
 // Fit trains `nRounds` of boosting; X is N×D, Y is N×T (T = numTargets).
-// We assume Y[i][j] is the class index (float64) for jth target on ith row.
 // Uses squared-error: gradient = pred - target, hessian = 1.
 func (b *Booster) Fit(X [][]float64, Y [][]float64, nRounds int) {
 	N := len(X)
@@ -45,28 +44,28 @@ func (b *Booster) Fit(X [][]float64, Y [][]float64, nRounds int) {
 
 	for round := 0; round < nRounds; round++ {
 		for j := 0; j < T; j++ {
-			// 1) Compute gradients and hessians for target j
+			// Compute gradients and hessians for target j
 			grad := make([]float64, N)
 			hess := make([]float64, N)
-			for i := 0; i < N; i++ {
+			for i := range N {
 				grad[i] = preds[i][j] - Y[i][j] // pred - target
 				hess[i] = 1.0
 			}
 
-			// 2) Build one histogram‐based tree on (X, grad, hess)
+			// Build one histogram‐based tree on (X, grad, hess)
 			treeJ := tree.BuildHistogramTree(
 				X,
 				grad,
 				hess,
-				0,            // current depth
-				b.MaxDepth,   // maxDepth
-				b.MinSamples, // minSamples per leaf
-				b.NumBins,    // numBins per feature
+				0,            
+				b.MaxDepth,   
+				b.MinSamples, 
+				b.NumBins,    
 			)
 			b.Trees[j] = append(b.Trees[j], treeJ)
 
-			// 3) Update preds[i][j] += learningRate * tree prediction
-			for i := 0; i < N; i++ {
+			// Update preds[i][j] += learningRate * tree prediction
+			for i := range N {
 				val := tree.PredictTree(treeJ, X[i])
 				preds[i][j] += b.LearningRate * val
 			}
